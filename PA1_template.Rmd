@@ -1,0 +1,66 @@
+---
+title: "PA1_template"
+output: html_document
+---
+
+
+```{r}
+data<-read.csv("C:/Users/weibinkelvin/Documents/activity.csv")
+library(plyr)
+library(dplyr)
+GroupByDate<-group_by(data, date)
+SummariseByDate<-summarise(GroupByDate, sum(steps, na.rm=TRUE))
+names(SummariseByDate)<-c("date", "steps")
+hist(SummariseByDate$steps, main="histogram of the total number of steps taken each day", xlab="step")
+mean(SummariseByDate$steps)
+median(SummariseByDate$steps)
+```
+
+```{r}
+GroupByInterval<-group_by(data,interval)
+SummariseByInterval<-summarise(GroupByInterval, mean(steps,na.rm=TRUE))
+names(SummariseByInterval)<-c("interval", "Average_steps")
+plot(SummariseByInterval$interval, SummariseByInterval$Average_steps, type="l", xlab="5-minute interval", main="daily pattern", ylab="average step across all days")
+maxIndex<-which.max(SummariseByInterval$Average_steps)
+SummariseByInterval[maxIndex,]$interval
+##835=8.35am
+```
+
+```{r}
+sum(is.na(data))
+#number of rows with NA values
+IntervalMean<-aggregate(steps~interval, data, mean, na.action=na.omit)$steps
+newdata<-transform(data, steps=ifelse(is.na(data$steps),IntervalMean, data$steps))
+```
+
+```{r}
+NewGroupByDate<-group_by(newdata, date)
+NewSummariseByDate<-summarise(NewGroupByDate, sum(steps, na.rm=TRUE))
+names(NewSummariseByDate)<-c("date", "steps")
+hist(NewSummariseByDate$steps, main="NEW histogram of the total number of steps taken each day", xlab="step")
+mean(NewSummariseByDate$steps)
+median(NewSummariseByDate$steps)
+
+```
+Mean of old data is the same as the mean of new imputed data
+However median of the 2 sets have changed. new data is higher than older one.
+
+```{r}
+copydata<-newdata
+copydata$weekdays<-as.factor(weekdays(as.Date(newdata$date)))
+copydata$ifweekday<-ifelse(!(copydata$weekday %in% c("Saturday","Sunday")), TRUE, FALSE)
+weekday<-copydata[copydata$ifweekday,]
+weekend<-copydata[!copydata$ifweekday,]
+
+WeekdayMean <- aggregate(weekday$steps, by=list(interval=weekday$interval), FUN=mean)
+WeekendMean <- aggregate(weekend$steps, by=list(interval=weekend$interval), FUN=mean)
+colnames(WeekdayMean) <- c("interval", "average_steps")
+colnames(WeekendMean) <- c("interval", "average_steps")
+WeekdayMean$day <- "Weekday"
+WeekendMean$day <- "Weekend"
+CombineData<-rbind(WeekdayMean,WeekendMean)
+
+library(lattice)
+xyplot(average_steps ~  interval | day, data = CombineData, layout = c(1,2), type ="l", ylab="Number of Steps")
+
+```
